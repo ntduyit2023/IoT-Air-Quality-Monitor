@@ -30,3 +30,4 @@ Tải và cài đặt trên máy tính (nếu chưa có):
 ---
 
 > 💡 **Gặp lỗi?** Xem mục số 7 trong file [README.md](README.md) để biết cách khắc phục!
+
