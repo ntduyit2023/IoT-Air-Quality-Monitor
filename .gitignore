@@ -1,0 +1,18 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+compile_commands.json
+
+# VS Code machine-specific files
+.vscode/*
+!.vscode/extensions.json
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary and log files
+*.log
+*.tmp

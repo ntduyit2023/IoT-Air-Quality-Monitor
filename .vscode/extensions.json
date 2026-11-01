@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "platformio.platformio-ide",
+        "wokwi.wokwi-vscode"
+    ],
+    "unwantedRecommendations": [
+        "ms-vscode.cpptools-extension-pack",
+        "pioarduino.pioarduino-ide"
+    ]
+}

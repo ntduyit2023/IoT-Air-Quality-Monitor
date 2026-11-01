@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Air Quality Monitor - Giám sát Chất lượng Không khí Phòng học</title>
+  <meta name="description" content="Hệ thống IoT giám sát chất lượng không khí phòng học thời gian thực: nhiệt độ, độ ẩm, khói/gas. Điều khiển còi cảnh báo từ xa.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Background -->
+  <div class="bg-particle bg-particle-1"></div>
+  <div class="bg-particle bg-particle-2"></div>
+  <div class="bg-particle bg-particle-3"></div>
+
+  <div class="app-shell">
+    <!-- ===== HEADER ===== -->
+    <header class="header" id="appHeader">
+      <div class="header-left">
+        <div class="header-logo">
+          <i class="fa-solid fa-wind"></i>
+        </div>
+        <div>
+          <h1 class="header-title">Air Quality Monitor</h1>
+          <p class="header-subtitle">Giám sát Chất lượng Không khí Phòng học Thông minh</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="conn-badge" id="connBadge">
+          <span class="conn-dot" id="connDot"></span>
+          <span id="connLabel">Đang kết nối...</span>
+        </div>
+        <button class="icon-btn" id="openSettingsBtn" title="Cấu hình API">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== ALERT BANNER ===== -->
+    <div class="alert-strip hidden" id="alertStrip">
+      <div class="alert-body">
+        <i class="fa-solid fa-triangle-exclamation alert-ic"></i>
+        <div>
+          <strong id="alertHeading">Cảnh báo:</strong>
+          <span id="alertMsg">Nồng độ khói vượt ngưỡng an toàn!</span>
+        </div>
+      </div>
+      <button class="alert-dismiss" id="dismissAlertBtn">&times;</button>
+    </div>
+
+    <!-- ===== MAIN DASHBOARD ===== -->
+    <main class="dash">
+      <!-- Row 1: 4 Sensor Cards -->
+      <section class="card card-temp" id="cardTemp">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-temperature-half card-ic ic-temp"></i>
+            <h2>Nhiệt độ</h2>
+          </div>
+          <span class="tag tag-cyan">DHT22</span>
+        </div>
+        <div class="gauge-box">
+          <svg class="gauge-ring" viewBox="0 0 120 120">
+            <circle class="gauge-track" cx="60" cy="60" r="50"></circle>
+            <circle class="gauge-fill gauge-fill-temp" id="gaugeTemp" cx="60" cy="60" r="50"></circle>
+          </svg>
+          <div class="gauge-label">
+            <span class="gauge-num mono" id="tempValue">--</span>
+            <span class="gauge-unit">°C</span>
+          </div>
+        </div>
+        <div class="card-footer-row">
+          <span class="footer-tag" id="tempStatus">Đang tải...</span>
+          <span class="footer-time mono" id="tempTime">--:--</span>
+        </div>
+      </section>
+
+      <section class="card card-humi" id="cardHumi">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-droplet card-ic ic-humi"></i>
+            <h2>Độ ẩm</h2>
+          </div>
+          <span class="tag tag-blue">DHT22</span>
+        </div>
+        <div class="gauge-box">
+          <svg class="gauge-ring" viewBox="0 0 120 120">
+            <circle class="gauge-track" cx="60" cy="60" r="50"></circle>
+            <circle class="gauge-fill gauge-fill-humi" id="gaugeHumi" cx="60" cy="60" r="50"></circle>
+          </svg>
+          <div class="gauge-label">
+            <span class="gauge-num mono" id="humiValue">--</span>
+            <span class="gauge-unit">%</span>
+          </div>
+        </div>
+        <div class="card-footer-row">
+          <span class="footer-tag" id="humiStatus">Đang tải...</span>
+          <span class="footer-time mono" id="humiTime">--:--</span>
+        </div>
+      </section>
+
+      <section class="card card-gas" id="cardGas">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-smog card-ic ic-gas"></i>
+            <h2>Khói / Gas</h2>
+          </div>
+          <span class="tag tag-orange">MQ-2</span>
+        </div>
+        <div class="gauge-box">
+          <svg class="gauge-ring" viewBox="0 0 120 120">
+            <circle class="gauge-track" cx="60" cy="60" r="50"></circle>
+            <circle class="gauge-fill gauge-fill-gas" id="gaugeGas" cx="60" cy="60" r="50"></circle>
+          </svg>
+          <div class="gauge-label">
+            <span class="gauge-num mono" id="gasValue">--</span>
+            <span class="gauge-unit">ADC</span>
+          </div>
+        </div>
+        <div class="gas-bar-wrap">
+          <div class="gas-bar">
+            <div class="gas-bar-fill" id="gasBarFill"></div>
+            <div class="gas-bar-marker gas-marker-mod" style="left:36.6%" title="Ngưỡng Trung bình (1500)"></div>
+            <div class="gas-bar-marker gas-marker-bad" style="left:61%" title="Ngưỡng Nguy hiểm (2500)"></div>
+          </div>
+          <div class="gas-bar-labels">
+            <span>0</span><span>1500</span><span>2500</span><span>4095</span>
+          </div>
+        </div>
+        <div class="card-footer-row">
+          <span class="footer-tag" id="gasStatus">Đang tải...</span>
+          <span class="footer-time mono" id="gasTime">--:--</span>
+        </div>
+      </section>
+
+      <!-- AQI Big Status Card -->
+      <section class="card card-aqi" id="cardAqi">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-lungs card-ic ic-aqi"></i>
+            <h2>Chất lượng Không khí</h2>
+          </div>
+        </div>
+        <div class="aqi-display" id="aqiDisplay">
+          <div class="aqi-glow" id="aqiGlow"></div>
+          <i class="fa-solid fa-shield-heart aqi-icon" id="aqiIcon"></i>
+          <div class="aqi-label" id="aqiLabel">ĐANG TẢI...</div>
+          <div class="aqi-sub" id="aqiSub">Chờ dữ liệu từ cảm biến</div>
+        </div>
+        <div class="aqi-details">
+          <div class="aqi-detail-row">
+            <i class="fa-solid fa-wind"></i>
+            <span>Còi cảnh báo:</span>
+            <strong id="buzzerStateText">Tắt</strong>
+          </div>
+          <div class="aqi-detail-row">
+            <i class="fa-solid fa-microchip"></i>
+            <span>Chế độ:</span>
+            <strong id="modeStateText">Tự động</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Row 2: Control Panel + Notification Settings -->
+      <section class="card card-ctrl">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-gamepad card-ic ic-ctrl"></i>
+            <h2>Bảng Điều khiển Từ xa</h2>
+          </div>
+          <span class="tag tag-mode" id="modeBadge">AUTO</span>
+        </div>
+        <div class="ctrl-body">
+          <div class="ctrl-group">
+            <label class="ctrl-label">Chế độ hoạt động:</label>
+            <div class="seg-switch">
+              <button class="seg-opt active" id="btnAuto"><i class="fa-solid fa-robot"></i> Tự động</button>
+              <button class="seg-opt" id="btnManual"><i class="fa-solid fa-hand-pointer"></i> Thủ công</button>
+            </div>
+            <p class="ctrl-note"><strong>Tự động:</strong> Còi tự kêu khi khói vượt ngưỡng nguy hiểm. <strong>Thủ công:</strong> Bạn toàn quyền bật/tắt còi.</p>
+          </div>
+          <div class="ctrl-group">
+            <label class="ctrl-label">Điều khiển còi cảnh báo:</label>
+            <div class="action-grid">
+              <button class="btn btn-danger btn-act" id="btnBuzzerOn"><i class="fa-solid fa-volume-high"></i> BẬT CÒI NGAY</button>
+              <button class="btn btn-success btn-act" id="btnBuzzerOff"><i class="fa-solid fa-volume-xmark"></i> TẮT CÒI NGAY</button>
+            </div>
+            <div class="cmd-status" id="cmdStatus">
+              <i class="fa-solid fa-circle-check"></i> <span>Sẵn sàng</span>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <div class="threshold-head">
+              <label class="ctrl-label">Ngưỡng cảnh báo Khói/Gas:</label>
+              <span class="threshold-val mono" id="threshDisplay">2500</span>
+            </div>
+            <input type="range" min="500" max="3800" step="50" value="2500" id="threshSlider" class="range-input">
+            <div class="range-ticks"><span>500</span><span>1500</span><span>2500</span><span>3800</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-notif">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-bell card-ic ic-notif"></i>
+            <h2>Cảnh báo &amp; Thông báo</h2>
+          </div>
+        </div>
+        <div class="notif-body">
+          <div class="toggle-item">
+            <div><div class="toggle-title">Âm thanh cảnh báo</div><div class="toggle-desc">Phát tiếng bíp khi phát hiện khói nguy hiểm</div></div>
+            <label class="sw"><input type="checkbox" id="toggleSound" checked><span class="sw-slider"></span></label>
+          </div>
+          <div class="toggle-item">
+            <div><div class="toggle-title">Thông báo trình duyệt</div><div class="toggle-desc">Hiện popup cảnh báo khi chất lượng không khí xấu</div></div>
+            <label class="sw"><input type="checkbox" id="togglePush"><span class="sw-slider"></span></label>
+          </div>
+          <div class="toggle-item">
+            <div><div class="toggle-title">Tự động đồng bộ</div><div class="toggle-desc">Tải dữ liệu mới từ ThingSpeak mỗi 5 giây</div></div>
+            <label class="sw"><input type="checkbox" id="toggleAutoSync" checked><span class="sw-slider"></span></label>
+          </div>
+          <button class="btn btn-outline btn-block" id="btnRefresh"><i class="fa-solid fa-rotate"></i> Làm mới dữ liệu ngay</button>
+        </div>
+      </section>
+
+      <!-- Row 3: Chart -->
+      <section class="card card-chart">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-chart-area card-ic ic-chart"></i>
+            <h2>Biểu đồ Giám sát Thời gian thực</h2>
+          </div>
+          <div class="chart-legend">
+            <span class="leg"><span class="leg-dot" style="background:#22d3ee"></span>Nhiệt độ</span>
+            <span class="leg"><span class="leg-dot" style="background:#60a5fa"></span>Độ ẩm</span>
+            <span class="leg"><span class="leg-dot" style="background:#fbbf24"></span>Khói/Gas</span>
+            <span class="leg"><span class="leg-dot dot-dash" style="background:#f97316"></span>Ngưỡng</span>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="mainChart"></canvas>
+        </div>
+      </section>
+
+      <!-- Row 4: Event Log -->
+      <section class="card card-log">
+        <div class="card-head">
+          <div class="card-head-left">
+            <i class="fa-solid fa-clipboard-list card-ic ic-log"></i>
+            <h2>Nhật ký Sự kiện Hệ thống</h2>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btnClearLog"><i class="fa-solid fa-trash-can"></i> Xóa</button>
+        </div>
+        <div class="log-wrap">
+          <table class="log-tbl">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Sự kiện</th>
+                <th>Nhiệt độ</th>
+                <th>Độ ẩm</th>
+                <th>Khói</th>
+                <th>Chất lượng</th>
+              </tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Đồ án IoT: Giám sát Chất lượng Không khí trong Phòng học • ESP32 + DHT22 + MQ-2 + OLED SH1107 • Wokwi &amp; ThingSpeak</p>
+    </footer>
+  </div>
+
+  <!-- ===== SETTINGS MODAL ===== -->
+  <div class="modal-overlay hidden" id="settingsOverlay">
+    <div class="modal-box">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-sliders"></i> Cấu hình ThingSpeak</h3>
+        <button class="modal-x" id="closeModalBtn">&times;</button>
+      </div>
+      <div class="modal-mid">
+        <div class="field">
+          <label for="cfgChannel">Channel ID:</label>
+          <input type="text" id="cfgChannel" class="finput" value="3551578">
+        </div>
+        <div class="field">
+          <label for="cfgWriteKey">Write API Key:</label>
+          <input type="text" id="cfgWriteKey" class="finput" value="CE712UCBEPI28WOA">
+        </div>
+        <div class="field">
+          <label for="cfgReadKey">Read API Key (nếu Private):</label>
+          <input type="text" id="cfgReadKey" class="finput" placeholder="Để trống nếu kênh Public">
+        </div>
+        <div class="field">
+          <label for="cfgInterval">Tần suất đồng bộ (giây):</label>
+          <input type="number" id="cfgInterval" class="finput" min="3" max="60" value="5">
+        </div>
+      </div>
+      <div class="modal-bot">
+        <button class="btn btn-ghost" id="cancelModalBtn">Hủy</button>
+        <button class="btn btn-primary" id="saveModalBtn"><i class="fa-solid fa-check"></i> Lưu &amp; Áp dụng</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
