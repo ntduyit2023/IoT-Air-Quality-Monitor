@@ -7,8 +7,8 @@
 // ========== 1. CẤU HÌNH WIFI ==========
 // Mặc định "Wokwi-GUEST" dùng cho mô phỏng Wokwi.
 // Khi chạy mạch thật, bạn có thể đổi thành tên WiFi & Mật khẩu nhà/phát từ điện thoại:
-const char* ssid     = "Wokwi-GUEST";
-const char* password = "";
+const char* ssid     = "entidi";
+const char* password = "01112005";
 
 // ========== 2. CẤU HÌNH THINGSPEAK ==========
 const char* serverUpdate = "http://api.thingspeak.com/update";
