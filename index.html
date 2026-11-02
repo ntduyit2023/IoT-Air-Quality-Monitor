@@ -12,7 +12,516 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <link rel="stylesheet" href="style.css">
+  <style>
+/* ========================================================================
+   AIR QUALITY MONITOR – DASHBOARD STYLES
+   Theme: Dark Navy + Cyan/Teal IoT Aesthetic
+   ======================================================================== */
+
+:root {
+  --bg: #060b14;
+  --bg-card: rgba(12, 19, 33, 0.8);
+  --bg-card-alt: rgba(16, 25, 42, 0.85);
+  --bg-hover: rgba(20, 32, 54, 0.9);
+  --border: rgba(255,255,255,0.07);
+  --border-hover: rgba(255,255,255,0.14);
+
+  --text: #f0f4f8;
+  --text-2: #94a3b8;
+  --text-3: #64748b;
+
+  --cyan: #22d3ee;
+  --cyan-g: rgba(34,211,238,0.35);
+  --blue: #60a5fa;
+  --blue-g: rgba(96,165,250,0.35);
+  --green: #34d399;
+  --green-g: rgba(52,211,153,0.4);
+  --amber: #fbbf24;
+  --amber-g: rgba(251,191,36,0.4);
+  --orange: #f97316;
+  --orange-g: rgba(249,115,22,0.35);
+  --red: #f87171;
+  --red-g: rgba(248,113,113,0.4);
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
+  --shadow: 0 8px 32px -8px rgba(0,0,0,0.55);
+  --ease: cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ===== Background Particles ===== */
+.bg-particle {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: .25;
+  pointer-events: none;
+  z-index: 0;
+}
+.bg-particle-1 { width: 500px; height: 500px; top: -120px; left: -80px; background: radial-gradient(circle, #0891b2, transparent 70%); }
+.bg-particle-2 { width: 400px; height: 400px; bottom: -100px; right: -60px; background: radial-gradient(circle, #7c3aed, transparent 70%); opacity: .12; }
+.bg-particle-3 { width: 300px; height: 300px; top: 40%; left: 50%; background: radial-gradient(circle, #059669, transparent 70%); opacity: .1; }
+
+/* ===== Shell ===== */
+.app-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== Header ===== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.header-logo {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #0891b2, #2563eb);
+  display: grid; place-items: center;
+  font-size: 22px; color: #fff;
+  box-shadow: 0 4px 16px rgba(8,145,178,.45);
+}
+.header-title {
+  font-size: 1.35rem; font-weight: 800;
+  background: linear-gradient(90deg,#e2e8f0,#94a3b8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header-subtitle { font-size: .82rem; color: var(--text-2); }
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+.conn-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: .82rem; font-weight: 500;
+}
+.conn-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--amber);
+  animation: blink 1.6s infinite;
+}
+.conn-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green-g); animation: none; }
+.conn-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red-g); animation: none; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.35} }
+
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: .2s var(--ease);
+}
+.icon-btn:hover { background: rgba(255,255,255,.1); }
+
+/* ===== Alert Strip Variants ===== */
+.alert-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px;
+  border-radius: var(--radius-sm);
+  animation: slideIn .3s var(--ease);
+  transition: all .3s ease;
+}
+.alert-strip.hidden { display: none !important; }
+.alert-strip.alert-danger {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.35));
+  border: 1.5px solid #ef4444;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.45);
+  animation: dangerPulse 1.8s infinite ease-in-out;
+}
+.alert-strip.alert-warning {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.25));
+  border: 1px solid #f59e0b;
+}
+.alert-strip.alert-success {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25));
+  border: 1px solid #10b981;
+}
+@keyframes dangerPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.35); }
+  50% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.75); border-color: #f87171; }
+}
+.card.pulse-danger {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.4) !important;
+  animation: dangerPulse 1.8s infinite ease-in-out;
+}
+.alert-body { display: flex; align-items: center; gap: 10px; }
+.alert-ic { font-size: 1.15rem; color: var(--red); }
+.alert-actions { display: flex; align-items: center; gap: 10px; }
+.alert-dismiss { background: none; border: none; color: var(--text-2); font-size: 1.4rem; cursor: pointer; }
+@keyframes slideIn { from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)} }
+
+/* ===== Dashboard Grid ===== */
+.dash {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.card-ctrl { grid-column: span 2; }
+.card-notif { grid-column: span 2; }
+.card-chart { grid-column: span 4; }
+.card-log { grid-column: span 4; }
+
+@media(max-width:1100px) {
+  .dash { grid-template-columns: repeat(2,1fr); }
+  .card-ctrl, .card-notif, .card-chart, .card-log { grid-column: span 2; }
+}
+@media(max-width:640px) {
+  .dash { grid-template-columns: 1fr; }
+  .card-ctrl, .card-notif, .card-chart, .card-log { grid-column: span 1; }
+}
+
+/* ===== Card Base ===== */
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .25s var(--ease);
+  overflow: hidden;
+}
+.card:hover { border-color: var(--border-hover); }
+
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-head-left { display: flex; align-items: center; gap: 10px; }
+.card-ic { font-size: 1.1rem; }
+.ic-temp { color: var(--cyan); }
+.ic-humi { color: var(--blue); }
+.ic-gas { color: var(--amber); }
+.ic-aqi { color: var(--green); }
+.ic-ctrl { color: var(--orange); }
+.ic-notif { color: var(--amber); }
+.ic-chart { color: var(--cyan); }
+.ic-log { color: var(--blue); }
+.card h2 { font-size: 1.05rem; font-weight: 700; }
+
+/* Tags */
+.tag {
+  font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  padding: 3px 9px; border-radius: 999px;
+}
+.tag-cyan   { background: rgba(34,211,238,.12); color: var(--cyan); border: 1px solid rgba(34,211,238,.3); }
+.tag-blue   { background: rgba(96,165,250,.12); color: var(--blue); border: 1px solid rgba(96,165,250,.3); }
+.tag-orange { background: rgba(249,115,22,.12); color: var(--orange); border: 1px solid rgba(249,115,22,.3); }
+.tag-mode   { background: rgba(34,211,238,.12); color: var(--cyan); border: 1px solid rgba(34,211,238,.3); }
+
+/* ===== Gauge (Circular Progress) ===== */
+.gauge-box {
+  position: relative;
+  width: 150px; height: 150px;
+  margin: 0 auto 12px;
+}
+.gauge-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.gauge-track { fill: none; stroke: rgba(255,255,255,.06); stroke-width: 9; }
+.gauge-fill {
+  fill: none; stroke-width: 9; stroke-linecap: round;
+  stroke-dasharray: 314; stroke-dashoffset: 314;
+  transition: stroke-dashoffset .8s var(--ease), stroke .4s var(--ease);
+}
+.gauge-fill-temp { stroke: var(--cyan); filter: drop-shadow(0 0 6px var(--cyan-g)); }
+.gauge-fill-humi { stroke: var(--blue); filter: drop-shadow(0 0 6px var(--blue-g)); }
+.gauge-fill-gas  { stroke: var(--green); filter: drop-shadow(0 0 6px var(--green-g)); }
+
+.gauge-label {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  text-align: center;
+}
+.gauge-num { font-size: 2rem; font-weight: 800; line-height: 1.1; color: #fff; }
+.gauge-unit { display: block; font-size: .72rem; color: var(--text-3); text-transform: uppercase; }
+
+.card-footer-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 10px; border-top: 1px solid var(--border);
+  font-size: .82rem;
+}
+.footer-tag { color: var(--text-2); font-weight: 500; }
+.footer-time { color: var(--text-3); }
+
+/* ===== Gas Bar ===== */
+.gas-bar-wrap { margin-bottom: 10px; }
+.gas-bar {
+  position: relative; height: 8px;
+  background: rgba(255,255,255,.06);
+  border-radius: 4px; overflow: visible;
+}
+.gas-bar-fill {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--green), var(--amber), var(--red));
+  width: 0%; transition: width .6s var(--ease);
+}
+.gas-bar-marker {
+  position: absolute; top: -3px; width: 2px; height: 14px;
+  border-radius: 1px;
+}
+.gas-marker-mod { background: var(--amber); }
+.gas-marker-bad { background: var(--red); }
+.gas-bar-labels {
+  display: flex; justify-content: space-between;
+  font-size: .68rem; color: var(--text-3); margin-top: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ===== AQI Card ===== */
+.aqi-display {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; padding: 20px 0 14px;
+  position: relative;
+  text-align: center;
+}
+.aqi-glow {
+  position: absolute; width: 140px; height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--green-g), transparent 70%);
+  filter: blur(20px);
+  transition: background .5s var(--ease);
+}
+.aqi-icon {
+  font-size: 52px; color: var(--green);
+  z-index: 2;
+  transition: color .4s var(--ease), filter .4s var(--ease);
+  filter: drop-shadow(0 0 12px var(--green-g));
+}
+.aqi-label {
+  font-size: 1.35rem; font-weight: 900; letter-spacing: .04em;
+  color: var(--green); z-index: 2;
+  transition: color .4s var(--ease);
+}
+.aqi-sub { font-size: .82rem; color: var(--text-2); z-index: 2; }
+
+/* AQI States */
+.aqi-good .aqi-glow { background: radial-gradient(circle, var(--green-g), transparent 70%); }
+.aqi-good .aqi-icon { color: var(--green); filter: drop-shadow(0 0 14px var(--green-g)); }
+.aqi-good .aqi-label { color: var(--green); }
+
+.aqi-moderate .aqi-glow { background: radial-gradient(circle, var(--amber-g), transparent 70%); }
+.aqi-moderate .aqi-icon { color: var(--amber); filter: drop-shadow(0 0 14px var(--amber-g)); }
+.aqi-moderate .aqi-label { color: var(--amber); }
+
+.aqi-danger .aqi-glow { background: radial-gradient(circle, var(--red-g), transparent 70%); }
+.aqi-danger .aqi-icon { color: var(--red); filter: drop-shadow(0 0 14px var(--red-g)); animation: dangerPulse 1.2s infinite alternate; }
+.aqi-danger .aqi-label { color: var(--red); }
+@keyframes dangerPulse { 0%{transform:scale(1)}100%{transform:scale(1.08);filter:drop-shadow(0 0 22px var(--red-g))} }
+
+.aqi-details {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+  font-size: .85rem;
+}
+.aqi-detail-row {
+  display: flex; align-items: center; gap: 8px; color: var(--text-2);
+}
+.aqi-detail-row i { color: var(--cyan); font-size: .9rem; width: 18px; text-align: center; }
+.aqi-detail-row strong { margin-left: auto; color: var(--text); }
+
+/* ===== Control Panel ===== */
+.ctrl-body { display: flex; flex-direction: column; gap: 18px; }
+.ctrl-group { display: flex; flex-direction: column; gap: 8px; }
+.ctrl-label { font-size: .88rem; font-weight: 600; }
+.ctrl-note { font-size: .76rem; color: var(--text-3); line-height: 1.4; }
+
+.seg-switch {
+  display: flex; padding: 4px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm); gap: 4px;
+}
+.seg-opt {
+  flex: 1; padding: 9px 12px;
+  background: transparent; border: none; border-radius: var(--radius-xs);
+  color: var(--text-2); font-size: .84rem; font-weight: 600;
+  cursor: pointer; transition: .2s var(--ease);
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.seg-opt:hover { color: #fff; }
+.seg-opt.active {
+  background: linear-gradient(135deg,#0284c7,#2563eb);
+  color: #fff; box-shadow: 0 4px 12px rgba(2,132,199,.4);
+}
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.cmd-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .8rem; color: var(--text-2); margin-top: 2px;
+}
+.cmd-status.ok { color: var(--green); }
+.cmd-status.wait { color: var(--amber); }
+.cmd-status.err { color: var(--red); }
+
+/* Threshold Slider */
+.threshold-head { display: flex; justify-content: space-between; align-items: center; }
+.threshold-val {
+  background: rgba(249,115,22,.15); color: var(--orange);
+  border: 1px solid rgba(249,115,22,.3);
+  padding: 2px 8px; border-radius: var(--radius-xs);
+  font-size: .82rem; font-weight: 700;
+}
+.range-input {
+  width: 100%; accent-color: var(--orange);
+  height: 5px; background: rgba(255,255,255,.08);
+  border-radius: 3px; outline: none; cursor: pointer;
+}
+.range-ticks {
+  display: flex; justify-content: space-between;
+  font-size: .68rem; color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ===== Notification Toggles ===== */
+.notif-body { display: flex; flex-direction: column; gap: 12px; }
+.toggle-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.toggle-item:last-of-type { border-bottom: none; }
+.toggle-title { font-size: .88rem; font-weight: 600; }
+.toggle-desc { font-size: .76rem; color: var(--text-2); }
+
+/* Switch */
+.sw { position: relative; display: inline-block; width: 42px; height: 22px; flex-shrink: 0; }
+.sw input { opacity: 0; width: 0; height: 0; }
+.sw-slider {
+  position: absolute; inset: 0; background: rgba(255,255,255,.12);
+  border-radius: 22px; cursor: pointer; transition: .3s;
+}
+.sw-slider::before {
+  content: ''; position: absolute;
+  width: 16px; height: 16px; left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%; transition: .3s;
+}
+.sw input:checked + .sw-slider { background: var(--cyan); box-shadow: 0 0 8px var(--cyan-g); }
+.sw input:checked + .sw-slider::before { transform: translateX(20px); }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 16px; border-radius: var(--radius-sm);
+  font-size: .84rem; font-weight: 600; border: none;
+  cursor: pointer; transition: .2s var(--ease);
+}
+.btn-primary { background: linear-gradient(135deg,#0284c7,#2563eb); color: #fff; box-shadow: 0 4px 14px rgba(2,132,199,.35); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(2,132,199,.5); }
+.btn-success { background: linear-gradient(135deg,#059669,#10b981); color: #fff; box-shadow: 0 4px 14px rgba(16,185,129,.35); }
+.btn-success:hover { transform: translateY(-1px); }
+.btn-danger { background: linear-gradient(135deg,#dc2626,#ef4444); color: #fff; box-shadow: 0 4px 14px rgba(239,68,68,.35); }
+.btn-danger:hover { transform: translateY(-1px); }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { background: rgba(255,255,255,.05); border-color: var(--cyan); }
+.btn-ghost { background: transparent; color: var(--text-2); }
+.btn-ghost:hover { color: #fff; background: rgba(255,255,255,.05); }
+.btn-sm { padding: 5px 10px; font-size: .78rem; }
+.btn-block { width: 100%; }
+.btn-act { padding: 11px 14px; }
+
+/* ===== Chart ===== */
+.chart-wrap { height: 300px; position: relative; width: 100%; }
+.chart-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: .78rem; color: var(--text-2); }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-dash { outline: 2px dashed; outline-offset: 1px; }
+
+/* ===== Event Log ===== */
+.log-wrap {
+  max-height: 230px; overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.log-tbl { width: 100%; border-collapse: collapse; font-size: .84rem; text-align: left; }
+.log-tbl th {
+  padding: 10px 14px; background: rgba(0,0,0,.35); color: var(--text-2);
+  font-weight: 600; position: sticky; top: 0; backdrop-filter: blur(8px);
+}
+.log-tbl td { padding: 10px 14px; border-top: 1px solid var(--border); color: var(--text); }
+.log-tbl tbody tr:hover { background: rgba(255,255,255,.02); }
+
+/* Footer */
+.app-footer { text-align: center; font-size: .78rem; color: var(--text-3); padding: 14px 0; }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(6px);
+  display: grid; place-items: center;
+  z-index: 1000; padding: 20px;
+  animation: fadeIn .2s;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: #111827; border: 1px solid var(--border);
+  border-radius: var(--radius); width: 100%; max-width: 500px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.8); overflow: hidden;
+}
+.modal-top {
+  padding: 16px 22px; display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.modal-top h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.modal-x { background: none; border: none; color: var(--text-2); font-size: 1.5rem; cursor: pointer; }
+.modal-mid { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: .84rem; font-weight: 600; }
+.finput {
+  padding: 9px 12px; background: rgba(255,255,255,.05);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: #fff; font-size: .88rem; outline: none; transition: .2s;
+}
+.finput:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(34,211,238,.2); }
+.modal-bot {
+  padding: 14px 22px; display: flex; justify-content: flex-end; gap: 10px;
+  border-top: 1px solid var(--border); background: rgba(0,0,0,.2);
+}
+@keyframes fadeIn { from{opacity:0}to{opacity:1} }
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.2); }
+  </style>
 </head>
 <body>
   <!-- Ambient Background -->
@@ -46,13 +555,16 @@
     <!-- ===== ALERT BANNER ===== -->
     <div class="alert-strip hidden" id="alertStrip">
       <div class="alert-body">
-        <i class="fa-solid fa-triangle-exclamation alert-ic"></i>
+        <i class="fa-solid fa-triangle-exclamation alert-ic" id="alertIcon"></i>
         <div>
           <strong id="alertHeading">Cảnh báo:</strong>
           <span id="alertMsg">Nồng độ khói vượt ngưỡng an toàn!</span>
         </div>
       </div>
-      <button class="alert-dismiss" id="dismissAlertBtn">&times;</button>
+      <div class="alert-actions">
+        <button class="btn btn-sm btn-danger" id="alertQuickMuteBtn" style="display:none;padding:6px 14px;font-size:0.8rem;border-radius:6px;cursor:pointer;font-weight:600"><i class="fa-solid fa-volume-xmark"></i> Tắt còi khẩn cấp</button>
+        <button class="alert-dismiss" id="dismissAlertBtn">&times;</button>
+      </div>
     </div>
 
     <!-- ===== MAIN DASHBOARD ===== -->
@@ -112,7 +624,7 @@
             <i class="fa-solid fa-smog card-ic ic-gas"></i>
             <h2>Khói / Gas</h2>
           </div>
-          <span class="tag tag-orange">MQ-2</span>
+          <span class="tag tag-orange">MQ-135</span>
         </div>
         <div class="gauge-box">
           <svg class="gauge-ring" viewBox="0 0 120 120">
@@ -199,10 +711,10 @@
           <div class="ctrl-group">
             <div class="threshold-head">
               <label class="ctrl-label">Ngưỡng cảnh báo Khói/Gas:</label>
-              <span class="threshold-val mono" id="threshDisplay">2500</span>
+              <span class="threshold-val mono" id="threshDisplay">500</span>
             </div>
-            <input type="range" min="500" max="3800" step="50" value="2500" id="threshSlider" class="range-input">
-            <div class="range-ticks"><span>500</span><span>1500</span><span>2500</span><span>3800</span></div>
+            <input type="range" min="200" max="3000" step="25" value="500" id="threshSlider" class="range-input">
+            <div class="range-ticks"><span>200</span><span>400</span><span style="color:var(--red);font-weight:700">500 (Test)</span><span>1500</span><span>3000</span></div>
           </div>
         </div>
       </section>
@@ -279,7 +791,7 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <p>Đồ án IoT: Giám sát Chất lượng Không khí trong Phòng học • ESP32 + DHT22 + MQ-2 + OLED SH1107 • Wokwi &amp; ThingSpeak</p>
+      <p>Đồ án IoT: Giám sát Chất lượng Không khí trong Phòng học • ESP32 + DHT22 + MQ-135 + OLED SSD1306 • Wokwi &amp; ThingSpeak</p>
     </footer>
   </div>
 
@@ -315,6 +827,718 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script>
+/**
+ * AIR QUALITY MONITOR – DASHBOARD CONTROLLER (ALL-IN-ONE)
+ * Kết nối ThingSpeak API | Chart.js | Điều khiển Từ xa | Cảnh báo
+ * ThingSpeak Channel: 3551578
+ *   Field 1: Nhiệt độ (°C)
+ *   Field 2: Độ ẩm (%)
+ *   Field 3: Khói/Gas (ADC 0-4095)
+ *   Field 4: Mức chất lượng (0=Tốt, 1=Trung bình, 2=Nguy hiểm)
+ *   Field 5: Lệnh điều khiển (0=Auto, 1=Bật còi, 2=Tắt còi)
+ */
+
+// ======================== CẤU HÌNH ========================
+const DEFAULTS = {
+  channelId: '3551578',
+  writeKey: 'CE712UCBEPI28WOA',
+  readKey: '',
+  syncInterval: 5,
+  gasThreshold: 500  // Mặc định 500 ADC để đồng bộ hoàn hảo với ESP32
+};
+
+const state = {
+  cfg: { ...DEFAULTS },
+  temp: 0, humi: 0, gas: 0,
+  aqiLevel: -1,        // -1=chưa có, 0=Tốt, 1=TB, 2=Nguy hiểm
+  mode: 0,             // 0=Auto, 1=Bật còi, 2=Tắt còi
+  buzzerOn: false,
+  prevAqi: -1,
+  soundOn: true,
+  pushOn: false,
+  chart: null,
+  timer: null,
+  sending: false
+};
+
+// ======================== AUDIO ALARM ========================
+let audioCtx = null;
+function getAudioContext() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function beep(freq = 880, dur = 0.25, type = 'triangle') {
+  if (!state.soundOn) return;
+  try {
+    const ctx = getAudioContext();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, ctx.currentTime);
+    g.gain.setValueAtTime(0.18, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + dur);
+  } catch (_) { /* ignore */ }
+}
+
+function playEmergencySiren() {
+  if (!state.soundOn) return;
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    // 3 tiếng còi bíp dồn dập báo động khẩn cấp
+    [0, 0.14, 0.28].forEach((offset, idx) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(idx % 2 === 0 ? 1200 : 950, now + offset);
+      g.gain.setValueAtTime(0.25, now + offset);
+      g.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.11);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now + offset);
+      o.stop(now + offset + 0.11);
+    });
+  } catch (_) { /* ignore */ }
+}
+
+// ======================== CẤU HÌNH LƯU TRỮ ========================
+function loadConfig() {
+  const s = localStorage.getItem('aq_monitor_cfg');
+  if (s) {
+    try { 
+      Object.assign(state.cfg, JSON.parse(s)); 
+      if (state.cfg.gasThreshold === 2500) state.cfg.gasThreshold = 500;
+    } catch (_) {}
+  }
+  document.getElementById('cfgChannel').value = state.cfg.channelId;
+  document.getElementById('cfgWriteKey').value = state.cfg.writeKey;
+  document.getElementById('cfgReadKey').value = state.cfg.readKey;
+  document.getElementById('cfgInterval').value = state.cfg.syncInterval;
+  document.getElementById('threshSlider').value = state.cfg.gasThreshold;
+  document.getElementById('threshDisplay').textContent = state.cfg.gasThreshold;
+}
+
+function saveConfig() {
+  state.cfg.channelId = document.getElementById('cfgChannel').value.trim();
+  state.cfg.writeKey = document.getElementById('cfgWriteKey').value.trim();
+  state.cfg.readKey = document.getElementById('cfgReadKey').value.trim();
+  state.cfg.syncInterval = Math.max(3, parseInt(document.getElementById('cfgInterval').value) || 5);
+  localStorage.setItem('aq_monitor_cfg', JSON.stringify(state.cfg));
+  restartSync();
+  addLog('Cấu hình đã cập nhật', '--', '--', '--', '--');
+}
+
+// ======================== GAUGE HELPERS ========================
+const CIRC = 314; // 2 * PI * 50
+
+function setGauge(id, value, max) {
+  const el = document.getElementById(id);
+  const ratio = Math.min(1, Math.max(0, value / max));
+  el.style.strokeDashoffset = CIRC - CIRC * ratio;
+}
+
+function colorGasGauge(val) {
+  const el = document.getElementById('gaugeGas');
+  const dangerThresh = state.cfg.gasThreshold || 500;
+  const modThresh = Math.round(dangerThresh * 0.75);
+  if (val < modThresh) { 
+    el.style.stroke = '#34d399'; 
+    el.style.filter = 'drop-shadow(0 0 6px rgba(52,211,153,.4))'; 
+  } else if (val < dangerThresh) { 
+    el.style.stroke = '#fbbf24'; 
+    el.style.filter = 'drop-shadow(0 0 6px rgba(251,191,36,.4))'; 
+  } else { 
+    el.style.stroke = '#f87171'; 
+    el.style.filter = 'drop-shadow(0 0 10px rgba(248,113,113,.75))'; 
+  }
+}
+
+// ======================== UI UPDATE ========================
+function updateTempUI(v) {
+  state.temp = v;
+  document.getElementById('tempValue').textContent = v.toFixed(1);
+  setGauge('gaugeTemp', v, 50); // 0-50°C range
+  let status = 'Bình thường';
+  if (v > 35) status = '⚠ Quá nóng!';
+  else if (v > 30) status = 'Hơi nóng';
+  else if (v < 15) status = 'Lạnh';
+  document.getElementById('tempStatus').textContent = status;
+}
+
+function updateHumiUI(v) {
+  state.humi = v;
+  document.getElementById('humiValue').textContent = v.toFixed(1);
+  setGauge('gaugeHumi', v, 100);
+  let status = 'Bình thường';
+  if (v > 85) status = '⚠ Quá ẩm!';
+  else if (v > 70) status = 'Hơi ẩm';
+  else if (v < 30) status = 'Khô';
+  document.getElementById('humiStatus').textContent = status;
+}
+
+function updateGasUI(v) {
+  state.gas = v;
+  document.getElementById('gasValue').textContent = v;
+  setGauge('gaugeGas', v, 4095);
+  colorGasGauge(v);
+  document.getElementById('gasBarFill').style.width = Math.min(100, ((v / 4095) * 100)) + '%';
+
+  const dangerThresh = state.cfg.gasThreshold || 500;
+  const modThresh = Math.round(dangerThresh * 0.75);
+  let status = 'Sạch (An toàn)';
+  const card = document.getElementById('cardGas');
+  if (v >= dangerThresh) {
+    status = '🚨 NGUY HIỂM (Vượt ' + dangerThresh + ')!';
+    if (card) card.classList.add('pulse-danger');
+  } else if (v >= modThresh) {
+    status = '⚠ Ô nhiễm nhẹ / Chớm khói';
+    if (card) card.classList.remove('pulse-danger');
+  } else {
+    if (card) card.classList.remove('pulse-danger');
+  }
+  document.getElementById('gasStatus').textContent = status;
+}
+
+function updateAqiUI(level) {
+  const changed = state.aqiLevel !== level;
+  state.aqiLevel = level;
+
+  const display = document.getElementById('aqiDisplay');
+  const icon = document.getElementById('aqiIcon');
+  const label = document.getElementById('aqiLabel');
+  const sub = document.getElementById('aqiSub');
+  const card = document.getElementById('cardAqi');
+
+  display.classList.remove('aqi-good', 'aqi-moderate', 'aqi-danger');
+
+  if (level === 0) {
+    display.classList.add('aqi-good');
+    icon.className = 'fa-solid fa-shield-heart aqi-icon';
+    label.textContent = 'KHÔNG KHÍ TỐT';
+    sub.textContent = 'Chất lượng không khí trong phòng đạt mức an toàn';
+    state.buzzerOn = (state.mode === 1);
+    if (card) card.classList.remove('pulse-danger');
+  } else if (level === 1) {
+    display.classList.add('aqi-moderate');
+    icon.className = 'fa-solid fa-triangle-exclamation aqi-icon';
+    label.textContent = 'CHÚ Ý / Ô NHIỄM NHẸ';
+    sub.textContent = 'Nồng độ khói/gas tăng nhẹ, đang theo dõi chặt chẽ';
+    state.buzzerOn = (state.mode === 1);
+    if (card) card.classList.remove('pulse-danger');
+  } else {
+    display.classList.add('aqi-danger');
+    icon.className = 'fa-solid fa-skull-crossbones aqi-icon';
+    label.textContent = '🚨 BÁO ĐỘNG ĐỎ - NGUY HIỂM!';
+    sub.textContent = `Nồng độ khói vượt ngưỡng an toàn (${state.gas} / ${state.cfg.gasThreshold} ADC)! Còi đang kích hoạt.`;
+    state.buzzerOn = (state.mode !== 2);
+    if (card) card.classList.add('pulse-danger');
+  }
+
+  document.getElementById('buzzerStateText').textContent = state.buzzerOn ? 'ĐANG KÊU' : 'Tắt';
+  document.getElementById('modeStateText').textContent =
+    state.mode === 0 ? 'Tự động (Auto)' : (state.mode === 1 ? 'Bật còi cưỡng bức' : 'Tắt còi cưỡng bức');
+
+  // Xử lý thông báo cảnh báo chuẩn xác:
+  if (level === 2) {
+    showAlert('🚨 BÁO ĐỘNG KHẨN CẤP:', `Phát hiện nồng độ khói/gas vượt ngưỡng (${state.gas} / ${state.cfg.gasThreshold} ADC)! Còi phòng học đang hú.`, 'danger', true);
+    playEmergencySiren();
+    if (changed || state.prevAqi !== 2) {
+      pushNotify('🚨 BÁO ĐỘNG NGUY HIỂM!', `Nồng độ khói đo được: ${state.gas} ADC (Vượt ngưỡng ${state.cfg.gasThreshold})!`);
+      addLog('Báo động khẩn cấp: Khói vượt ngưỡng', state.temp + ' °C', state.humi + ' %', state.gas + ' ADC', 2);
+    }
+  } else if (level === 1) {
+    if (changed || state.prevAqi !== 1) {
+      showAlert('⚠ Lưu ý theo dõi:', `Nồng độ khói/gas tăng nhẹ (${state.gas} ADC). Hệ thống đang theo dõi.`, 'warning', false);
+      beep(750, 0.25, 'triangle');
+      addLog('Cảnh báo: Khói tăng nhẹ', state.temp + ' °C', state.humi + ' %', state.gas + ' ADC', 1);
+    }
+  } else {
+    if (state.prevAqi > 0) {
+      showAlert('✅ AN TOÀN TRỞ LẠI:', `Chất lượng không khí đã ổn định (${state.gas} ADC). Còi đã tắt.`, 'success', false);
+      beep(523, 0.2, 'sine');
+      addLog('Không khí trở về an toàn', state.temp + ' °C', state.humi + ' %', state.gas + ' ADC', 0);
+    }
+  }
+  state.prevAqi = level;
+}
+
+function setMode(m) {
+  state.mode = m;
+  const autoBtn = document.getElementById('btnAuto');
+  const manBtn = document.getElementById('btnManual');
+  const badge = document.getElementById('modeBadge');
+
+  if (m === 0) {
+    autoBtn.classList.add('active'); manBtn.classList.remove('active');
+    badge.textContent = 'AUTO'; badge.className = 'tag tag-mode';
+  } else {
+    autoBtn.classList.remove('active'); manBtn.classList.add('active');
+    badge.textContent = 'MANUAL'; badge.className = 'tag tag-orange';
+  }
+  document.getElementById('modeStateText').textContent =
+    m === 0 ? 'Tự động' : (m === 1 ? 'Bật còi cưỡng bức' : 'Tắt còi cưỡng bức');
+}
+
+function updateTimestamps(dateStr) {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const t = d.toLocaleTimeString('vi-VN');
+  document.getElementById('tempTime').textContent = t;
+  document.getElementById('humiTime').textContent = t;
+  document.getElementById('gasTime').textContent = t;
+}
+
+// ======================== ALERT & NOTIFICATION ========================
+function showAlert(heading, msg, type = 'warning', persistent = false) {
+  const strip = document.getElementById('alertStrip');
+  const icon = document.getElementById('alertIcon');
+  const h = document.getElementById('alertHeading');
+  const m = document.getElementById('alertMsg');
+  const muteBtn = document.getElementById('alertQuickMuteBtn');
+
+  strip.className = 'alert-strip alert-' + type;
+  h.textContent = heading;
+  m.textContent = msg;
+
+  if (type === 'danger') {
+    if (icon) icon.className = 'fa-solid fa-radiation alert-ic';
+    if (muteBtn) muteBtn.style.display = 'inline-flex';
+  } else if (type === 'success') {
+    if (icon) icon.className = 'fa-solid fa-circle-check alert-ic';
+    if (muteBtn) muteBtn.style.display = 'none';
+  } else {
+    if (icon) icon.className = 'fa-solid fa-triangle-exclamation alert-ic';
+    if (muteBtn) muteBtn.style.display = 'none';
+  }
+
+  strip.classList.remove('hidden');
+  clearTimeout(strip._t);
+  if (!persistent) {
+    strip._t = setTimeout(() => strip.classList.add('hidden'), 7000);
+  }
+}
+
+function pushNotify(title, body) {
+  if (state.pushOn && 'Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, { body, icon: 'https://cdn-icons-png.flaticon.com/512/4380/4380661.png' });
+    } catch (_) {}
+  }
+}
+
+// ======================== EVENT LOG ========================
+function addLog(event, temp, humi, gas, quality) {
+  const tbody = document.getElementById('logBody');
+  const tr = document.createElement('tr');
+  const now = new Date().toLocaleTimeString('vi-VN');
+
+  const qBadge = quality === 0 ? '<span class="tag tag-cyan" style="font-size:.72rem">Tốt</span>'
+    : quality === 1 ? '<span class="tag tag-orange" style="font-size:.72rem">TB</span>'
+    : quality === 2 ? '<span class="tag" style="font-size:.72rem;background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)">Nguy hiểm</span>'
+    : quality;
+
+  tr.innerHTML = `
+    <td class="mono" style="color:var(--text-2)">${now}</td>
+    <td><strong>${event}</strong></td>
+    <td class="mono">${temp}</td>
+    <td class="mono">${humi}</td>
+    <td class="mono">${gas}</td>
+    <td>${qBadge}</td>`;
+  tbody.insertBefore(tr, tbody.firstChild);
+  while (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
+}
+
+// ======================== CHART.JS ========================
+function initChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+
+  const gradTemp = ctx.createLinearGradient(0, 0, 0, 280);
+  gradTemp.addColorStop(0, 'rgba(34,211,238,.3)');
+  gradTemp.addColorStop(1, 'rgba(34,211,238,0)');
+
+  const gradHumi = ctx.createLinearGradient(0, 0, 0, 280);
+  gradHumi.addColorStop(0, 'rgba(96,165,250,.25)');
+  gradHumi.addColorStop(1, 'rgba(96,165,250,0)');
+
+  state.chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Nhiệt độ (°C)',
+          data: [], borderColor: '#22d3ee', backgroundColor: gradTemp,
+          borderWidth: 2.5, fill: true, tension: .35, yAxisID: 'yLeft',
+          pointRadius: 2, pointHoverRadius: 5
+        },
+        {
+          label: 'Độ ẩm (%)',
+          data: [], borderColor: '#60a5fa', backgroundColor: gradHumi,
+          borderWidth: 2, fill: true, tension: .35, yAxisID: 'yLeft',
+          pointRadius: 2, pointHoverRadius: 5
+        },
+        {
+          label: 'Khói/Gas (ADC)',
+          data: [], borderColor: '#fbbf24', backgroundColor: 'transparent',
+          borderWidth: 2.5, fill: false, tension: .35, yAxisID: 'yRight',
+          pointRadius: 2, pointHoverRadius: 5
+        },
+        {
+          label: 'Ngưỡng Nguy hiểm',
+          data: [], borderColor: '#f97316', borderWidth: 1.5,
+          borderDash: [6, 4], fill: false, pointRadius: 0, yAxisID: 'yRight'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0f172a', titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
+          borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, padding: 10
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,.04)' },
+          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+        },
+        yLeft: {
+          type: 'linear', position: 'left', min: 0, max: 100,
+          grid: { color: 'rgba(255,255,255,.04)' },
+          ticks: { color: '#22d3ee', font: { family: 'JetBrains Mono', size: 10 } },
+          title: { display: true, text: '°C / %', color: '#22d3ee' }
+        },
+        yRight: {
+          type: 'linear', position: 'right', min: 0, max: 4095,
+          grid: { drawOnChartArea: false },
+          ticks: { color: '#fbbf24', font: { family: 'JetBrains Mono', size: 10 } },
+          title: { display: true, text: 'Gas ADC', color: '#fbbf24' }
+        }
+      }
+    }
+  });
+}
+
+// ======================== THINGSPEAK FETCH ========================
+async function fetchData() {
+  const { channelId, readKey } = state.cfg;
+  let url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?results=20`;
+  if (readKey) url += `&api_key=${readKey}`;
+
+  const dot = document.getElementById('connDot');
+  const lbl = document.getElementById('connLabel');
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    dot.className = 'conn-dot online';
+    lbl.textContent = 'Đã kết nối Cloud';
+
+    if (data.feeds && data.feeds.length > 0) {
+      processFeeds(data.feeds);
+    }
+  } catch (err) {
+    console.warn('Fetch error:', err);
+    dot.className = 'conn-dot offline';
+    lbl.textContent = 'Mất kết nối (Mô phỏng)';
+    simulateData();
+  }
+}
+
+function processFeeds(feeds) {
+  let fTemp = null, fHumi = null, fGas = null, fAqi = null, fMode = null;
+
+  for (let i = feeds.length - 1; i >= 0; i--) {
+    const f = feeds[i];
+    if (!fTemp && f.field1 != null && f.field1 !== '') fTemp = f;
+    if (!fHumi && f.field2 != null && f.field2 !== '') fHumi = f;
+    if (!fGas  && f.field3 != null && f.field3 !== '') fGas = f;
+    if (!fAqi  && f.field4 != null && f.field4 !== '') fAqi = f;
+    if (!fMode && f.field5 != null && f.field5 !== '') fMode = f;
+  }
+
+  const temp = fTemp ? parseFloat(fTemp.field1) : state.temp;
+  const humi = fHumi ? parseFloat(fHumi.field2) : state.humi;
+  const gas  = fGas  ? parseInt(fGas.field3) : state.gas;
+
+  // Đánh giá cấp độ chuẩn xác theo ngưỡng cấu hình hiện tại:
+  const dangerThresh = state.cfg.gasThreshold || 500;
+  const modThresh = Math.round(dangerThresh * 0.75);
+
+  let aqi = 0;
+  if (gas >= dangerThresh) {
+    aqi = 2; // NGUY HIỂM -> BÁO ĐỘNG ĐỎ
+  } else if (gas >= modThresh) {
+    aqi = 1; // Ô NHIỄM NHẸ / CHÚ Ý
+  } else {
+    aqi = 0; // AN TOÀN
+  }
+
+  if (fMode) {
+    const m = parseInt(fMode.field5);
+    if (m !== state.mode) setMode(m === 0 ? 0 : m);
+  }
+
+  updateTempUI(temp);
+  updateHumiUI(humi);
+  updateGasUI(gas);
+  updateAqiUI(aqi);
+
+  const lastTs = (fTemp || feeds[feeds.length - 1]).created_at;
+  updateTimestamps(lastTs);
+
+  if (state.chart) {
+    let runTemp = temp, runHumi = humi, runGas = gas;
+    const labels = [], dTemp = [], dHumi = [], dGas = [], dThresh = [];
+
+    feeds.forEach(f => {
+      const d = new Date(f.created_at);
+      labels.push(`${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`);
+
+      if (f.field1 != null && f.field1 !== '') runTemp = parseFloat(f.field1);
+      if (f.field2 != null && f.field2 !== '') runHumi = parseFloat(f.field2);
+      if (f.field3 != null && f.field3 !== '') runGas = parseInt(f.field3);
+
+      dTemp.push(runTemp);
+      dHumi.push(runHumi);
+      dGas.push(runGas);
+      dThresh.push(state.cfg.gasThreshold);
+    });
+
+    state.chart.data.labels = labels;
+    state.chart.data.datasets[0].data = dTemp;
+    state.chart.data.datasets[1].data = dHumi;
+    state.chart.data.datasets[2].data = dGas;
+    state.chart.data.datasets[3].data = dThresh;
+    state.chart.update('none');
+  }
+}
+
+// Mô phỏng khi không có internet
+let mockGas = 450;
+function simulateData() {
+  const jitter = (Math.random() - 0.5);
+  const temp = 25 + jitter * 6;
+  const humi = 60 + jitter * 20;
+  mockGas = Math.round(Math.min(4000, Math.max(100, mockGas + (Math.random() - 0.5) * 300)));
+
+  const dangerThresh = state.cfg.gasThreshold || 500;
+  const modThresh = Math.round(dangerThresh * 0.75);
+
+  let aqi = 0;
+  if (mockGas >= dangerThresh) aqi = 2;
+  else if (mockGas >= modThresh) aqi = 1;
+
+  updateTempUI(temp);
+  updateHumiUI(humi);
+  updateGasUI(mockGas);
+  updateAqiUI(aqi);
+  updateTimestamps();
+
+  if (state.chart) {
+    const now = new Date();
+    const label = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+    const c = state.chart;
+    if (c.data.labels.length > 20) {
+      c.data.labels.shift();
+      c.data.datasets.forEach(ds => ds.data.shift());
+    }
+    c.data.labels.push(label);
+    c.data.datasets[0].data.push(temp);
+    c.data.datasets[1].data.push(humi);
+    c.data.datasets[2].data.push(mockGas);
+    c.data.datasets[3].data.push(state.cfg.gasThreshold);
+    c.update('none');
+  }
+}
+
+// ======================== SEND COMMAND ========================
+async function sendCommand(field5Val, desc) {
+  const { writeKey } = state.cfg;
+  const fb = document.getElementById('cmdStatus');
+
+  if (!writeKey) {
+    fb.className = 'cmd-status err';
+    fb.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> <span>Chưa có Write API Key!</span>';
+    return;
+  }
+  if (state.sending) return;
+  state.sending = true;
+
+  fb.className = 'cmd-status wait';
+  fb.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Đang gửi "${desc}"...</span>`;
+
+  try {
+    const url = `https://api.thingspeak.com/update?api_key=${writeKey}&field5=${field5Val}`;
+    const res = await fetch(url);
+    const txt = await res.text();
+
+    if (txt && parseInt(txt) > 0) {
+      fb.className = 'cmd-status ok';
+      fb.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>"${desc}" thành công (Entry #${txt})</span>`;
+      state.mode = field5Val;
+      setMode(field5Val);
+    } else {
+      fb.className = 'cmd-status wait';
+      fb.innerHTML = '<i class="fa-solid fa-clock"></i> <span>ThingSpeak bận (giới hạn 15s), tự động gửi lại sau 3s...</span>';
+      state.sending = false;
+      setTimeout(() => sendCommand(field5Val, desc), 3000);
+      return;
+    }
+    addLog(desc, state.temp.toFixed(1), state.humi.toFixed(1), state.gas, state.aqiLevel);
+  } catch (_) {
+    fb.className = 'cmd-status ok';
+    fb.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>"${desc}" đã thực hiện cục bộ</span>`;
+    addLog(desc, state.temp.toFixed(1), state.humi.toFixed(1), state.gas, state.aqiLevel);
+  } finally {
+    state.sending = false;
+  }
+}
+
+// ======================== SYNC LOOP ========================
+function restartSync() {
+  if (state.timer) clearInterval(state.timer);
+  fetchData();
+  state.timer = setInterval(() => {
+    if (document.getElementById('toggleAutoSync').checked) fetchData();
+  }, (state.cfg.syncInterval || 5) * 1000);
+}
+
+// ======================== EVENT LISTENERS ========================
+function setupEvents() {
+  // Nút tắt còi khẩn cấp trên Banner cảnh báo
+  document.getElementById('alertQuickMuteBtn')?.addEventListener('click', () => {
+    setMode(2);
+    state.buzzerOn = false;
+    document.getElementById('buzzerStateText').textContent = 'Tắt';
+    sendCommand(2, 'TẮT CÒI KHẨN CẤP TỪ BANNER');
+    showAlert('Đã gửi lệnh:', 'Đang yêu cầu ESP32 tắt còi báo động khẩn cấp...', 'warning', false);
+  });
+
+  document.getElementById('btnAuto').addEventListener('click', () => {
+    setMode(0);
+    sendCommand(0, 'Chuyển chế độ Tự động (AUTO)');
+    const dangerThresh = state.cfg.gasThreshold || 500;
+    const modThresh = Math.round(dangerThresh * 0.75);
+    let aqi = state.gas >= dangerThresh ? 2 : (state.gas >= modThresh ? 1 : 0);
+    updateAqiUI(aqi);
+  });
+
+  document.getElementById('btnManual').addEventListener('click', () => {
+    setMode(1);
+    showAlert('Chế độ Thủ công:', 'Bạn toàn quyền bật/tắt còi cảnh báo.', 'warning', false);
+  });
+
+  document.getElementById('btnBuzzerOn').addEventListener('click', () => {
+    setMode(1);
+    state.buzzerOn = true;
+    document.getElementById('buzzerStateText').textContent = 'ĐANG KÊU';
+    sendCommand(1, 'BẬT CÒI CƯỠNG BỨC');
+  });
+
+  document.getElementById('btnBuzzerOff').addEventListener('click', () => {
+    setMode(2);
+    state.buzzerOn = false;
+    document.getElementById('buzzerStateText').textContent = 'Tắt';
+    sendCommand(2, 'TẮT CÒI CƯỠNG BỨC');
+  });
+
+  const slider = document.getElementById('threshSlider');
+  slider.addEventListener('input', e => {
+    const v = parseInt(e.target.value);
+    document.getElementById('threshDisplay').textContent = v;
+    state.cfg.gasThreshold = v;
+
+    if (state.chart) {
+      state.chart.data.datasets[3].data = state.chart.data.labels.map(() => v);
+      state.chart.update('none');
+    }
+
+    updateGasUI(state.gas);
+    if (state.mode === 0) {
+      const dangerThresh = v;
+      const modThresh = Math.round(v * 0.75);
+      let aqi = state.gas >= dangerThresh ? 2 : (state.gas >= modThresh ? 1 : 0);
+      updateAqiUI(aqi);
+    }
+  });
+  slider.addEventListener('change', () => {
+    localStorage.setItem('aq_monitor_cfg', JSON.stringify(state.cfg));
+    addLog(`Đổi ngưỡng: ${state.cfg.gasThreshold} ADC`, '--', '--', '--', '--');
+  });
+
+  document.getElementById('toggleSound').addEventListener('change', e => {
+    state.soundOn = e.target.checked;
+    if (e.target.checked) beep(880, 0.12);
+  });
+
+  document.getElementById('togglePush').addEventListener('change', async e => {
+    if (e.target.checked) {
+      if ('Notification' in window) {
+        try {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') {
+            state.pushOn = true;
+            new Notification('Air Quality Monitor', { 
+              body: 'Đã kích hoạt thông báo cảnh báo khẩn cấp!',
+              icon: 'https://cdn-icons-png.flaticon.com/512/4380/4380661.png'
+            });
+          } else {
+            alert('Trình duyệt đã từ chối quyền thông báo. Vui lòng cấp quyền trong cài đặt trình duyệt!');
+            e.target.checked = false;
+            state.pushOn = false;
+          }
+        } catch (_) {
+          e.target.checked = false;
+          state.pushOn = false;
+        }
+      } else {
+        alert('Trình duyệt không hỗ trợ thông báo Desktop.');
+        e.target.checked = false;
+        state.pushOn = false;
+      }
+    } else {
+      state.pushOn = false;
+    }
+  });
+
+  document.getElementById('btnRefresh').addEventListener('click', () => { fetchData(); beep(1200, 0.08); });
+
+  document.getElementById('btnClearLog').addEventListener('click', () => {
+    document.getElementById('logBody').innerHTML = '';
+  });
+
+  document.getElementById('dismissAlertBtn').addEventListener('click', () => {
+    document.getElementById('alertStrip').classList.add('hidden');
+  });
+
+  const overlay = document.getElementById('settingsOverlay');
+  document.getElementById('openSettingsBtn').addEventListener('click', () => overlay.classList.remove('hidden'));
+  document.getElementById('closeModalBtn').addEventListener('click', () => overlay.classList.add('hidden'));
+  document.getElementById('cancelModalBtn').addEventListener('click', () => overlay.classList.add('hidden'));
+  document.getElementById('saveModalBtn').addEventListener('click', () => {
+    saveConfig();
+    overlay.classList.add('hidden');
+    showAlert('Thành công!', 'Đã lưu cấu hình và kết nối lại ThingSpeak.');
+  });
+}
+
+// ======================== INIT ========================
+document.addEventListener('DOMContentLoaded', () => {
+  loadConfig();
+  initChart();
+  setupEvents();
+  restartSync();
+  addLog('Hệ thống khởi động', '--', '--', '--', '--');
+});
+  </script>
 </body>
 </html>

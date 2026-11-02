@@ -32,9 +32,9 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 #define DHT_TYPE DHT22
 DHT dht(DHT_PIN, DHT_TYPE);
 
-// ========== 5. NGƯỠNG ĐÁNH GIÁ CHẤT LƯỢNG KHÔNG KHÍ ==========
-int gasThresholdModerate = 1500;
-int gasThresholdDanger   = 2500;
+// ========== 5. NGƯỠNG ĐÁNH GIÁ CHẤT LƯỢNG KHÔNG KHÍ (TỐI ƯU TEST THỰC TẾ) ==========
+int gasThresholdModerate = 400;  // >= 400: Không khí hơi bẩn / chớm khói (LED Vàng)
+int gasThresholdDanger   = 500;  // >= 500: NGUY HIỂM -> HÚ CÒI BÁO ĐỘNG NGAY LẬP TỨC (LED Đỏ)
 
 const float TEMP_WARNING     = 35.0;  // Nhiệt độ quá cao (°C)
 const float HUMIDITY_WARNING = 85.0;  // Độ ẩm quá cao (%)
@@ -60,6 +60,7 @@ bool buzzerActive = false;
 float lastTemp     = 28.0;
 float lastHumidity = 65.0;
 int   lastGasLevel = 0;
+int   peakGasLevel = 0; // Biến lưu đỉnh khói cao nhất trong chu kỳ 20s gửi ThingSpeak
 
 // ==================== HÀM HIỂN THỊ MÀN HÌNH OLED 0.96" SSD1306 (128x64) ====================
 void updateOLEDDisplay() {
@@ -78,8 +79,8 @@ void updateOLEDDisplay() {
   snprintf(buf, sizeof(buf), "T: %.1f C  H: %.0f %%", lastTemp, lastHumidity);
   u8g2.drawStr(2, 24, buf);
 
-  // Dòng 3 (Y: 26-37): Cảm biến khí MQ-135
-  snprintf(buf, sizeof(buf), "MQ-135: %4d ADC", lastGasLevel);
+  // Dòng 3 (Y: 26-37): Cảm biến khí MQ-135 (Hiển thị tức thời & đỉnh peak)
+  snprintf(buf, sizeof(buf), "Gas: %4d (Pk:%4d)", lastGasLevel, peakGasLevel > 0 ? peakGasLevel : lastGasLevel);
   u8g2.drawStr(2, 36, buf);
 
   // Dòng 4 (Y: 38-49): Đánh giá chất lượng không khí
@@ -135,13 +136,11 @@ void setIndicatorLeds(bool green, bool yellow, bool red) {
 }
 
 void setBuzzer(bool active) {
-  if (active && !buzzerActive) {
-    digitalWrite(BUZZER_PIN, HIGH);
-    tone(BUZZER_PIN, 2000);
+  if (active) {
+    digitalWrite(BUZZER_PIN, HIGH); // Kích hoạt còi Active Buzzer kêu ngay lập tức
     buzzerActive = true;
-  } else if (!active && buzzerActive) {
-    digitalWrite(BUZZER_PIN, LOW);
-    noTone(BUZZER_PIN);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);  // Tắt còi Active Buzzer
     buzzerActive = false;
   }
 }
@@ -159,8 +158,13 @@ void readSensorsAndEvaluate() {
     Serial.println("[DHT WARN] Khong doc duoc du lieu tu DHT22!");
   }
 
-  // Đọc cảm biến MQ-2
+  // Đọc cảm biến MQ-135
   lastGasLevel = analogRead(GAS_PIN);
+
+  // Bắt đỉnh khói trong chu kỳ để gửi lên ThingSpeak chính xác (không bị lệch do khói tan nhanh)
+  if (lastGasLevel > peakGasLevel) {
+    peakGasLevel = lastGasLevel;
+  }
 
   // Đánh giá chất lượng
   if (lastGasLevel < gasThresholdModerate) {
@@ -216,12 +220,16 @@ void sendToThingSpeak() {
 
   HTTPClient http;
 
+  // Lấy giá trị gửi: ưu tiên gửi đỉnh khói cao nhất ghi nhận được trong chu kỳ
+  int gasToSend = (peakGasLevel > 0) ? peakGasLevel : lastGasLevel;
+  peakGasLevel = lastGasLevel; // Reset lại đỉnh bắt đầu từ mức hiện tại cho chu kỳ 20s tiếp theo
+
   // Luôn gửi cả field5=currentMode để không làm rỗng trường lệnh điều khiển trên ThingSpeak
   String url = String(serverUpdate) 
     + "?api_key=" + writeApiKey
     + "&field1=" + String(lastTemp, 1)
     + "&field2=" + String(lastHumidity, 1)
-    + "&field3=" + String(lastGasLevel)
+    + "&field3=" + String(gasToSend)
     + "&field4=" + String(airQualityLevel)
     + "&field5=" + String(currentMode);
 
@@ -230,7 +238,7 @@ void sendToThingSpeak() {
 
   if (httpCode > 0) {
     String response = http.getString();
-    Serial.printf("=> [THINGSPEAK] Gui thanh cong! Entry #%s | HTTP %d\r\n", response.c_str(), httpCode);
+    Serial.printf("=> [THINGSPEAK] Gui thanh cong! Entry #%s | Gas: %d (Peak) | HTTP %d\r\n", response.c_str(), gasToSend, httpCode);
   } else {
     Serial.printf("=> [THINGSPEAK] Loi gui du lieu! Ma: %d\r\n", httpCode);
   }
@@ -286,7 +294,7 @@ void setup() {
   digitalWrite(LED_GREEN, LOW);
   digitalWrite(LED_YELLOW, LOW);
   digitalWrite(LED_RED, LOW);
-  noTone(BUZZER_PIN);
+  digitalWrite(BUZZER_PIN, LOW);
 
   Wire.begin(21, 22);
   u8g2.begin();
