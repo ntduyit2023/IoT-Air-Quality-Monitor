@@ -5,6 +5,8 @@
 #include <DHT.h>
 
 // ========== 1. CẤU HÌNH WIFI ==========
+// Mặc định "Wokwi-GUEST" dùng cho mô phỏng Wokwi.
+// Khi chạy mạch thật, bạn có thể đổi thành tên WiFi & Mật khẩu nhà/phát từ điện thoại:
 const char* ssid     = "Wokwi-GUEST";
 const char* password = "";
 
@@ -14,17 +16,19 @@ const char* channelID    = "3551578";
 const String writeApiKey = "CE712UCBEPI28WOA";
 const String readApiKey  = "";
 
-// ========== 3. ĐỊNH NGHĨA CHÂN KẾT NỐI ==========
-const int GAS_PIN    = 34;   // Chân Analog AOUT của cảm biến MQ-135 / MQ-2 (ADC1_CH6)
-const int DHT_PIN    = 15;   // Chân Data của cảm biến DHT22
-const int BUZZER_PIN = 23;   // Chân điều khiển Buzzer (Còi cảnh báo)
-const int LED_GREEN  = 18;   // LED Xanh (tùy chọn)
-const int LED_YELLOW = 19;   // LED Vàng (tùy chọn)
-const int LED_RED    = 4;    // LED Đỏ (tùy chọn)
+// ========== 3. ĐỊNH NGHĨA CHÂN KẾT NỐI (CHUẨN BO MỞ RỘNG ESP32 38P) ==========
+const int GAS_PIN    = 34;   // Cảm biến khí MQ-135 (Chân AO -> Cọc vàng P34)
+const int DHT_PIN    = 15;   // Cảm biến nhiệt ẩm DHT22 (Chân giữa OUT -> Cọc vàng P15)
+const int BUZZER_PIN = 23;   // Còi báo động Buzzer 5V (Chân (+) -> Cọc vàng P23)
+// Màn hình OLED 0.96" I2C: Chân SDA -> Cọc vàng P21, Chân SCK/SCL -> Cọc vàng P22
+const int LED_GREEN  = 18;   // Dự phòng nếu có LED
+const int LED_YELLOW = 19;   // Dự phòng nếu có LED
+const int LED_RED    = 4;    // Dự phòng nếu có LED
 
 // ========== 4. KHỞI TẠO CẢM BIẾN & MÀN HÌNH OLED 0.96" SSD1306 (128x64) ==========
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
+// Sử dụng thư viện chuẩn Adafruit DHT cho Arduino-ESP32 Core 3.x
 #define DHT_TYPE DHT22
 DHT dht(DHT_PIN, DHT_TYPE);
 
@@ -37,13 +41,16 @@ const float HUMIDITY_WARNING = 85.0;  // Độ ẩm quá cao (%)
 
 // ========== 6. QUẢN LÝ THỜI GIAN ==========
 unsigned long lastSendTime          = 0;
-const unsigned long sendDelay       = 20000; // Gửi ThingSpeak mỗi 20s
+const unsigned long sendDelay       = 20000; // Gửi ThingSpeak mỗi 20s (chừa khoảng trống cho Dashboard)
 
 unsigned long lastCheckCmdTime      = 0;
 const unsigned long checkCmdDelay   = 5000;  // Đọc lệnh từ xa mỗi 5 giây
 
 unsigned long lastSensorReadTime    = 0;
 const unsigned long sensorReadDelay = 2500;  // Đọc cảm biến mỗi 2.5 giây
+
+unsigned long lastWiFiRetryTime     = 0;
+const unsigned long wifiRetryDelay  = 30000; // Thử kết nối lại WiFi mỗi 30s nếu mất mạng (không làm treo mạch)
 
 // ========== 7. BIẾN TRẠNG THÁI ==========
 int currentMode = 0;  // 0 = AUTO, 1 = FORCE ON, 2 = FORCE OFF
@@ -101,7 +108,7 @@ void connectToWiFi() {
   WiFi.begin(ssid, password);
 
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+  while (WiFi.status() != WL_CONNECTED && attempts < 15) {
     delay(500);
     Serial.print(".");
     attempts++;
@@ -114,7 +121,7 @@ void connectToWiFi() {
     Serial.print("[IDENTITY] Dia chi MAC Duy nhat: ");
     Serial.println(WiFi.macAddress());
   } else {
-    Serial.print("\r\n[WIFI] THAT BAI! Se thu ket noi lai sau...\r\n");
+    Serial.print("\r\n[WIFI] CHUA KET NOI DUOC! (Se chay che do Offline tai cho)\r\n");
   }
   Serial.print("==================================================\r\n\r\n");
 
@@ -129,9 +136,11 @@ void setIndicatorLeds(bool green, bool yellow, bool red) {
 
 void setBuzzer(bool active) {
   if (active && !buzzerActive) {
+    digitalWrite(BUZZER_PIN, HIGH);
     tone(BUZZER_PIN, 2000);
     buzzerActive = true;
   } else if (!active && buzzerActive) {
+    digitalWrite(BUZZER_PIN, LOW);
     noTone(BUZZER_PIN);
     buzzerActive = false;
   }
@@ -150,7 +159,7 @@ void readSensorsAndEvaluate() {
     Serial.println("[DHT WARN] Khong doc duoc du lieu tu DHT22!");
   }
 
-  // Đọc cảm biến MQ-135 (MQ-2)
+  // Đọc cảm biến MQ-2
   lastGasLevel = analogRead(GAS_PIN);
 
   // Đánh giá chất lượng
@@ -207,6 +216,7 @@ void sendToThingSpeak() {
 
   HTTPClient http;
 
+  // Luôn gửi cả field5=currentMode để không làm rỗng trường lệnh điều khiển trên ThingSpeak
   String url = String(serverUpdate) 
     + "?api_key=" + writeApiKey
     + "&field1=" + String(lastTemp, 1)
@@ -220,7 +230,7 @@ void sendToThingSpeak() {
 
   if (httpCode > 0) {
     String response = http.getString();
-    Serial.printf("=> [THINGSPEAK] Gui thanh conc! Entry #%s | HTTP %d\r\n", response.c_str(), httpCode);
+    Serial.printf("=> [THINGSPEAK] Gui thanh cong! Entry #%s | HTTP %d\r\n", response.c_str(), httpCode);
   } else {
     Serial.printf("=> [THINGSPEAK] Loi gui du lieu! Ma: %d\r\n", httpCode);
   }
@@ -290,6 +300,7 @@ void setup() {
   u8g2.drawStr(10, 60, "OLED 0.96 SSD1306");
   u8g2.sendBuffer();
 
+  // Khởi động cảm biến DHT22 bằng Adafruit DHT
   dht.begin();
 
   Serial.print("\r\n==================================================\r\n");
@@ -302,8 +313,12 @@ void setup() {
 
 // ==================== LOOP ====================
 void loop() {
+  // Tự động thử kết nối lại WiFi mỗi 30s nếu mất mạng (không làm đứng đơ màn hình và cảm biến)
   if (WiFi.status() != WL_CONNECTED) {
-    connectToWiFi();
+    if (millis() - lastWiFiRetryTime >= wifiRetryDelay) {
+      lastWiFiRetryTime = millis();
+      connectToWiFi();
+    }
   }
 
   if (millis() - lastSensorReadTime >= sensorReadDelay) {
